@@ -1,0 +1,15 @@
+Sheet names: ['The Park', 'Park Empty', 'Aanandam', 'Tawa', 'Platinum', 'Sheet4', 'Sheet5', 'Old Contact Details', 'Contacts']
+
+--- Analysis for sheet: Platinum ---
+Columns:
+  - 101
+  - Akash + 2.5 ( mother , wife)
+  - 3
+
+First 5 rows:
+   101 Akash + 2.5 ( mother , wife)  3
+0  102               Swapnil + Amit  2
+1  103                   Bharat + 1  2
+2  104                Aastha + Rhea  2
+3  105          Priyam Aggarwal + 1  2
+4  106             Ashwary Jain + 1  2
