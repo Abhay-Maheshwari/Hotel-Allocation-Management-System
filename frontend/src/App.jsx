@@ -76,22 +76,12 @@ function App() {
         }
     };
 
-    const handleMigrate = async () => {
-        if (confirm("This will overwrite your Firebase data with the local JSON file. Continue?")) {
-            const { migrateData } = await import('./utils/migrateData');
-            await migrateData();
-        }
-    };
-
     if (loading) return <div className="flex items-center justify-center h-screen bg-gray-100">Loading Hotels...</div>;
 
     // Show error but also valid UI if we have partial data? No, full block if error.
     if (error) return (
         <div className="flex flex-col items-center justify-center h-screen bg-red-50 text-red-600 gap-4">
             <div>Error: {error}</div>
-            <button onClick={handleMigrate} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                Run First-Time Migration
-            </button>
         </div>
     );
 
@@ -110,14 +100,6 @@ function App() {
                     initialFilter={initialFilter}
                     onClearInitialFilter={() => setInitialFilter('')}
                 />
-                {/* Hidden migration trigger for dev/admin use */}
-                <button
-                    onClick={handleMigrate}
-                    className="absolute bottom-2 right-2 opacity-10 hover:opacity-100 bg-gray-800 text-white text-xs px-2 py-1 rounded"
-                    title="Reset Data from JSON"
-                >
-                    Reset Data
-                </button>
             </main>
         </div>
     );
