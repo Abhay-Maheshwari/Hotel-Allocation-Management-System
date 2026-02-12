@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { collection, doc, setDoc, writeBatch } from "firebase/firestore";
+import { doc, writeBatch } from "firebase/firestore";
 import shaadiData from '../../../shaadi_data.json';
 
 export const migrateData = async () => {
