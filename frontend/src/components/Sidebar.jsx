@@ -1,9 +1,78 @@
 import React, { useState, useMemo } from 'react';
-import { Home, Users, Download, Upload, Search, BedDouble, Tag } from 'lucide-react';
-import axios from 'axios';
+import { Home, Users, Download, Upload, Search, BedDouble, Tag, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect }) => {
+// Sortable Item Component
+const SortableHotelItem = ({ hotel, selectedHotel, onSelectHotel }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: hotel.name });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : 1,
+    };
+
+    return (
+        <li ref={setNodeRef} style={style} className="touch-none">
+            <div
+                className={`w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-800 transition-colors group ${selectedHotel === hotel.name ? 'bg-indigo-600 hover:bg-indigo-700' : ''
+                    }`}
+            >
+                {/* Drag Handle */}
+                <div {...attributes} {...listeners} className="cursor-grab text-gray-500 hover:text-gray-300">
+                    <GripVertical size={16} />
+                </div>
+
+                {/* Clickable Area for Selection */}
+                <button
+                    onClick={() => onSelectHotel(hotel.name)}
+                    className="flex-1 flex items-center gap-2 text-left"
+                >
+                    <Home size={16} />
+                    <span className="truncate">{hotel.name}</span>
+                    <span className="ml-auto text-xs bg-gray-700 px-2 py-0.5 rounded-full">
+                        {hotel.rooms.length}
+                    </span>
+                </button>
+            </div>
+        </li>
+    );
+};
+
+const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, onReorder }) => {
     const [searchTerm, setSearchTerm] = useState('');
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+
+        if (active.id !== over.id) {
+            const oldIndex = hotels.findIndex((h) => h.name === active.id);
+            const newIndex = hotels.findIndex((h) => h.name === over.id);
+
+            const newOrder = arrayMove(hotels, oldIndex, newIndex);
+
+            // Call parent with new order
+            if (onReorder) {
+                onReorder(newOrder);
+            }
+        }
+    };
 
     const filteredResults = useMemo(() => {
         if (!searchTerm) return [];
@@ -24,9 +93,6 @@ const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect })
 
                 // Check Room Type
                 if (room.room_type && room.room_type.toLowerCase().includes(lowerTerm)) {
-                    // Avoid duplicates if both room number and type match, or just add distinct entry?
-                    // Let's add distinct entry for clarity or maybe just one entry per room.
-                    // For now, simple list.
                     if (!results.some(r => r.type === 'room' && r.data.room_number === room.room_number && r.hotelName === hotel.name)) {
                         results.push({ type: 'room', data: room, hotelName: hotel.name, match: 'type' });
                     }
@@ -55,21 +121,12 @@ const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect })
         if (result.type === 'hotel') {
             onSelectHotel(result.hotelName);
         } else if (result.type === 'room') {
-            // Pass room number to filter
-            if (onGlobalSearchSelect) {
-                onGlobalSearchSelect(result.hotelName, result.data.room_number);
-            } else {
-                onSelectHotel(result.hotelName);
-            }
+            if (onGlobalSearchSelect) onGlobalSearchSelect(result.hotelName, result.data.room_number);
+            else onSelectHotel(result.hotelName);
         } else if (result.type === 'occupant') {
-            // Pass occupant name to filter
-            if (onGlobalSearchSelect) {
-                onGlobalSearchSelect(result.hotelName, result.data.name);
-            } else {
-                onSelectHotel(result.hotelName);
-            }
+            if (onGlobalSearchSelect) onGlobalSearchSelect(result.hotelName, result.data.name);
+            else onSelectHotel(result.hotelName);
         }
-        // Optional: clear search after selection? Maybe not, user might want to see other results.
     };
 
     return (
@@ -124,51 +181,38 @@ const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect })
                 ) : (
                     <>
                         <div className="px-4 mb-2 text-xs text-gray-400 uppercase">Hotels</div>
-                        <ul>
-                            {hotels.map((hotel) => (
-                                <li key={hotel.name}>
-                                    <button
-                                        onClick={() => onSelectHotel(hotel.name)}
-                                        className={`w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-800 transition-colors ${selectedHotel === hotel.name ? 'bg-indigo-600 hover:bg-indigo-700' : ''
-                                            }`}
-                                    >
-                                        <Home size={16} />
-                                        <span>{hotel.name}</span>
-                                        <span className="ml-auto text-xs bg-gray-700 px-2 py-0.5 rounded-full">
-                                            {hotel.rooms.length}
-                                        </span>
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={hotels.map(h => h.name)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <ul>
+                                    {hotels.map((hotel) => (
+                                        <SortableHotelItem
+                                            key={hotel.name}
+                                            hotel={hotel}
+                                            selectedHotel={selectedHotel}
+                                            onSelectHotel={onSelectHotel}
+                                        />
+                                    ))}
+                                </ul>
+                            </SortableContext>
+                        </DndContext>
                     </>
                 )}
             </div>
 
             <div className="p-4 border-t border-gray-800 flex flex-col gap-2">
-                <button
-                    onClick={() => {
-                        // Export/Download feature removed from backend as per hosting plan
-                        alert("Download feature is temporarily disabled for cloud hosting transition.");
-                    }}
-                    className="w-full flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-colors opacity-50 cursor-not-allowed"
-                    title="Download Data (Disabled)"
-                    disabled
-                >
-                    <Download size={16} />
-                    <span>Download Data</span>
+                <button disabled className="w-full flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-colors opacity-50 cursor-not-allowed">
+                    <Download size={16} /> <span>Download Data</span>
                 </button>
-                <label className="w-full flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors cursor-not-allowed opacity-50 justify-center" title="Import Data (Disabled)">
-                    <Upload size={16} />
-                    <span>Import Data</span>
-                    <input
-                        type="file"
-                        accept=".json"
-                        className="hidden"
-                        disabled
-                        onChange={() => alert("Import feature is temporarily disabled for cloud hosting transition.")}
-                    />
-                </label>
+                <button disabled className="w-full flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors cursor-not-allowed opacity-50 justify-center">
+                    <Upload size={16} /> <span>Import Data</span>
+                </button>
             </div>
         </div>
     );

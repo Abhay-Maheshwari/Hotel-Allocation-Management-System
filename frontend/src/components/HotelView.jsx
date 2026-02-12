@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { User, UserMinus, Plus, Trash2 } from 'lucide-react';
-import axios from 'axios';
+import { db } from '../firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 // Function to generate a consistent color from a string
 const stringToColor = (str) => {
@@ -14,7 +15,7 @@ const stringToColor = (str) => {
     return `hsl(${h}, 70%, 90%)`; // Pastel background
 };
 
-const HotelView = ({ hotel, onUpdate, initialFilter, onClearInitialFilter }) => {
+const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('All');
     const [sortOrder, setSortOrder] = useState('asc');
@@ -31,14 +32,16 @@ const HotelView = ({ hotel, onUpdate, initialFilter, onClearInitialFilter }) => 
         }
     }, [initialFilter, onClearInitialFilter]);
 
-    if (!hotel) return <div className="p-8 text-gray-500">Select a hotel to view rooms</div>;
-
+    // Move hooks to top level to avoid "Rendered more hooks" error
     const roomTypes = useMemo(() => {
+        if (!hotel) return ['All'];
         const types = new Set(hotel.rooms.map(r => r.room_type).filter(Boolean));
         return ['All', ...Array.from(types).sort()];
-    }, [hotel.rooms]);
+    }, [hotel]);
 
+    // Use hotel.rooms directly, it's already live data
     const filteredRooms = useMemo(() => {
+        if (!hotel) return [];
         let result = hotel.rooms.filter(room => {
             const matchesSearch =
                 room.room_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -59,49 +62,118 @@ const HotelView = ({ hotel, onUpdate, initialFilter, onClearInitialFilter }) => 
                 ? a.room_number.localeCompare(b.room_number, undefined, { numeric: true })
                 : b.room_number.localeCompare(a.room_number, undefined, { numeric: true });
         });
-    }, [hotel.rooms, searchTerm, filterType, sortOrder]);
+    }, [hotel, searchTerm, filterType, sortOrder]);
+
+    if (!hotel) return <div className="p-8 text-gray-500">Select a hotel to view rooms</div>;
+
+    const handleUpdateRoom = async (roomNumber, updateFn) => {
+        try {
+            const hotelRef = doc(db, "hotels", hotel.name);
+            // We need to update the specific room in the rooms array.
+            // Firestore array manipulation is tricky for object updates.
+            // Simplest way for this array structure: Read whole array, modify, write back.
+            // Since we have 'hotel' prop which is live data, we can clone it.
+            // CAUTION: 'hotel' prop might be stale if we don't use the latest Snapshot? 
+            // Actually 'hotel' prop IS from the snapshot.
+
+            // A safer approach for concurrency is 'runTransaction', but for family app simpler is ok.
+            // Let's use the current 'hotel.rooms' and modify it.
+
+            const updatedRooms = hotel.rooms.map(r => {
+                if (r.room_number === roomNumber) {
+                    return updateFn(r);
+                }
+                return r;
+            });
+
+            await updateDoc(hotelRef, { rooms: updatedRooms });
+
+        } catch (error) {
+            console.error("Failed to update room", error);
+            alert("Failed to update: " + error.message);
+        }
+    };
+
 
     const handleUnassign = async (roomNumber, occupantName) => {
-        try {
-            await axios.post(`http://127.0.0.1:8000/api/rooms/${hotel.name}/${roomNumber}/unassign?occupant_name=${encodeURIComponent(occupantName)}`);
-            onUpdate();
-        } catch (error) {
-            console.error("Failed to unassign", error);
-            alert("Failed to remove occupant");
-        }
+        handleUpdateRoom(roomNumber, (room) => ({
+            ...room,
+            occupants: room.occupants.filter(o => o.name !== occupantName)
+        }));
     };
 
     const handleAssign = async (roomNumber) => {
         const name = prompt("Enter guest name:");
         if (!name) return;
-
-        try {
-            await axios.post(`http://127.0.0.1:8000/api/rooms/${hotel.name}/${roomNumber}/assign`, { name });
-            onUpdate();
-        } catch (error) {
-            console.error("Failed to assign", error);
-            alert("Failed to assign occupant");
-        }
+        handleUpdateRoom(roomNumber, (room) => ({
+            ...room,
+            occupants: [...room.occupants, { name }]
+        }));
     };
 
     const handleAddRoom = async (e) => {
         e.preventDefault();
         if (!newRoomNumber) return;
+
         try {
-            await axios.post(`http://127.0.0.1:8000/api/rooms/${hotel.name}/add`, {
+            const hotelRef = doc(db, "hotels", hotel.name);
+            const newRoom = {
                 room_number: newRoomNumber,
                 room_type: newRoomType || null,
-                occupants: []
+                occupants: [],
+                max_occupancy: null,
+                tags: []
+            };
+
+            await updateDoc(hotelRef, {
+                rooms: arrayUnion(newRoom)
             });
+
             setNewRoomNumber('');
             setNewRoomType('');
             setIsAddingRoom(false);
-            onUpdate();
         } catch (error) {
             console.error("Failed to add room", error);
-            alert(error.response?.data?.detail || "Failed to add room");
+            alert("Failed to add room: " + error.message);
         }
     };
+
+    const handleDeleteRoom = async (roomNumber) => {
+        if (window.confirm(`Are you sure you want to delete Room ${roomNumber}?`)) {
+            try {
+                const hotelRef = doc(db, "hotels", hotel.name);
+                // We need to find the exact object to remove it with arrayRemove.
+                // But arrayRemove needs the EXACT object. If it changed (e.g. someone added a guest),
+                // our local 'room' object might not match if we construct it manually.
+                // We should use the existing 'hotel.rooms' to find it and filter it out.
+
+                const updatedRooms = hotel.rooms.filter(r => r.room_number !== roomNumber);
+                await updateDoc(hotelRef, { rooms: updatedRooms });
+
+            } catch (err) {
+                console.error("Failed to delete", err);
+                alert("Failed to delete room");
+            }
+        }
+    };
+
+    const handleAddTag = async (roomNumber) => {
+        const tag = prompt("Enter tag:");
+        if (tag) {
+            handleUpdateRoom(roomNumber, (room) => ({
+                ...room,
+                tags: [...(room.tags || []), tag]
+            }));
+        }
+    }
+
+    const handleRemoveTag = async (roomNumber, tag) => {
+        handleUpdateRoom(roomNumber, (room) => ({
+            ...room,
+            tags: (room.tags || []).filter(t => t !== tag)
+        }));
+    }
+
 
     return (
         <div className="p-6 h-screen overflow-y-auto bg-gray-100 flex-1">
@@ -192,13 +264,7 @@ const HotelView = ({ hotel, onUpdate, initialFilter, onClearInitialFilter }) => 
                                     <Plus size={18} />
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        if (window.confirm(`Are you sure you want to delete Room ${room.room_number}?`)) {
-                                            axios.delete(`http://127.0.0.1:8000/api/rooms/${hotel.name}/${room.room_number}`)
-                                                .then(() => onUpdate())
-                                                .catch(err => alert("Failed to delete room"));
-                                        }
-                                    }}
+                                    onClick={() => handleDeleteRoom(room.room_number)}
                                     className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded-full hover:bg-red-50 ml-1"
                                     title="Delete Room"
                                 >
@@ -234,7 +300,7 @@ const HotelView = ({ hotel, onUpdate, initialFilter, onClearInitialFilter }) => 
                                             <span key={idx} className="bg-white/60 text-gray-700 text-xs px-2 py-1 rounded-full flex items-center gap-1 border border-black/5">
                                                 {tag}
                                                 <button
-                                                    onClick={() => axios.delete(`http://127.0.0.1:8000/api/rooms/${hotel.name}/${room.room_number}/tags/${tag}`).then(onUpdate)}
+                                                    onClick={() => handleRemoveTag(room.room_number, tag)}
                                                     className="hover:text-red-600"
                                                 >
                                                     &times;
@@ -242,14 +308,7 @@ const HotelView = ({ hotel, onUpdate, initialFilter, onClearInitialFilter }) => 
                                             </span>
                                         ))}
                                         <button
-                                            onClick={() => {
-                                                const tag = prompt("Enter tag:");
-                                                if (tag) {
-                                                    axios.post(`http://127.0.0.1:8000/api/rooms/${hotel.name}/${room.room_number}/tags?tag=${encodeURIComponent(tag)}`)
-                                                        .then(onUpdate)
-                                                        .catch(() => alert("Failed to add tag"));
-                                                }
-                                            }}
+                                            onClick={() => handleAddTag(room.room_number)}
                                             className="text-gray-400 hover:text-indigo-600 text-xs bg-white/40 hover:bg-white/80 px-2 py-1 rounded-full border border-dashed border-gray-300 transition-colors"
                                         >
                                             + Tag
