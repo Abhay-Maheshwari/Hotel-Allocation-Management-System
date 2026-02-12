@@ -11,6 +11,7 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [initialFilter, setInitialFilter] = useState('');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
         // Real-time listener
@@ -86,15 +87,42 @@ function App() {
     );
 
     return (
-        <div className="flex h-screen bg-gray-100 font-sans">
+        <div className="flex h-screen bg-gray-100 font-sans relative">
+            {/* Mobile Header */}
+            <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 p-4 z-20 flex justify-between items-center shadow-sm">
+                <h1 className="text-lg font-bold text-gray-800">Shaadi Planner</h1>
+                <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+
             <Sidebar
                 hotels={hotels}
                 selectedHotel={selectedHotelName}
-                onSelectHotel={setSelectedHotelName}
+                onSelectHotel={(name) => {
+                    setSelectedHotelName(name);
+                    setIsSidebarOpen(false); // Close sidebar on mobile when selecting
+                }}
                 onGlobalSearchSelect={handleGlobalSearchSelect}
                 onReorder={handleReorder}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
             />
-            <main className="flex-1 flex flex-col overflow-hidden relative">
+
+            {/* Overlay for mobile sidebar */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-20 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            <main className="flex-1 flex flex-col overflow-hidden relative pt-16 md:pt-0">
                 <HotelView
                     hotel={selectedHotel}
                     initialFilter={initialFilter}

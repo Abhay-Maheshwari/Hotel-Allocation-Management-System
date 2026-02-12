@@ -178,18 +178,18 @@ const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
     return (
         <div className="p-6 h-screen overflow-y-auto bg-gray-100 flex-1">
             <div className="flex flex-col gap-4 mb-6">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <h2 className="text-2xl font-bold text-gray-800">{hotel.name} <span className="text-sm font-normal text-gray-500">({hotel.rooms.length} rooms)</span></h2>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full md:w-auto">
                         <button
                             onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                            className="bg-white text-indigo-600 px-4 py-2 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition text-sm font-medium flex items-center gap-1"
+                            className="flex-1 md:flex-none justify-center bg-white text-indigo-600 px-4 py-2 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition text-sm font-medium flex items-center gap-1"
                         >
                             Sort {sortOrder === 'asc' ? '↑' : '↓'}
                         </button>
                         <button
                             onClick={() => setIsAddingRoom(!isAddingRoom)}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+                            className="flex-1 md:flex-none justify-center bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
                         >
                             <Plus size={18} /> Add Room
                         </button>
@@ -197,43 +197,45 @@ const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
                 </div>
 
                 {isAddingRoom && (
-                    <form onSubmit={handleAddRoom} className="bg-white p-4 rounded-lg shadow-sm border border-indigo-100 flex gap-4 items-end">
-                        <div>
+                    <form onSubmit={handleAddRoom} className="bg-white p-4 rounded-lg shadow-sm border border-indigo-100 flex flex-col md:flex-row gap-4 items-end">
+                        <div className="w-full md:w-auto">
                             <label className="block text-xs font-semibold text-gray-500 mb-1">Room Number</label>
                             <input
                                 type="text"
                                 value={newRoomNumber}
                                 onChange={e => setNewRoomNumber(e.target.value)}
-                                className="border rounded px-3 py-2 text-sm w-32"
+                                className="border rounded px-3 py-2 text-sm w-full md:w-32"
                                 placeholder="e.g. 505"
                                 required
                             />
                         </div>
-                        <div>
+                        <div className="w-full md:w-auto">
                             <label className="block text-xs font-semibold text-gray-500 mb-1">Room Type</label>
                             <input
                                 type="text"
                                 value={newRoomType}
                                 onChange={e => setNewRoomType(e.target.value)}
-                                className="border rounded px-3 py-2 text-sm w-48"
+                                className="border rounded px-3 py-2 text-sm w-full md:w-48"
                                 placeholder="e.g. Suite"
                             />
                         </div>
-                        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Save</button>
-                        <button type="button" onClick={() => setIsAddingRoom(false)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300">Cancel</button>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button type="submit" className="flex-1 md:flex-none bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Save</button>
+                            <button type="button" onClick={() => setIsAddingRoom(false)} className="flex-1 md:flex-none bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300">Cancel</button>
+                        </div>
                     </form>
                 )}
 
-                <div className="flex gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-200">
                     <input
                         type="text"
                         placeholder="Search room or guest..."
-                        className="border rounded px-3 py-2 text-sm flex-1"
+                        className="border rounded px-3 py-2 text-sm w-full md:flex-1"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                     <select
-                        className="border rounded px-3 py-2 text-sm bg-white"
+                        className="border rounded px-3 py-2 text-sm bg-white w-full md:w-auto"
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
                     >

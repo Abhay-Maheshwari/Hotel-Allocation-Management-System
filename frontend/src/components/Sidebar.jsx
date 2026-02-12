@@ -48,7 +48,7 @@ const SortableHotelItem = ({ hotel, selectedHotel, onSelectHotel }) => {
     );
 };
 
-const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, onReorder }) => {
+const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, onReorder, isOpen, onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const sensors = useSensors(
@@ -127,12 +127,25 @@ const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, o
             if (onGlobalSearchSelect) onGlobalSearchSelect(result.hotelName, result.data.name);
             else onSelectHotel(result.hotelName);
         }
+        // Close sidebar on mobile after selection
+        if (onClose) onClose();
     };
 
     return (
-        <div className="w-64 bg-gray-900 text-white h-screen flex flex-col">
-            <div className="p-4 border-b border-gray-800">
-                <h1 className="text-xl font-bold mb-4">Shaadi Planner</h1>
+        <div className={`
+            fixed inset-y-0 left-0 z-30 w-64 bg-gray-900 text-white transform transition-transform duration-300 ease-in-out flex flex-col
+            md:relative md:translate-x-0
+            ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}>
+            <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+                <h1 className="text-xl font-bold">Shaadi Planner</h1>
+                <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div className="px-4 pb-0 mb-4">
                 <div className="relative">
                     <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
                     <input
