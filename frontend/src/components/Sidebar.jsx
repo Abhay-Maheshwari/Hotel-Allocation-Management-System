@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Home, Users, Download, Upload, Search, BedDouble, Tag, GripVertical } from 'lucide-react';
+import { Home, Users, Download, Upload, Search, BedDouble, Tag, GripVertical, Moon, Sun } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -50,6 +51,7 @@ const SortableHotelItem = ({ hotel, selectedHotel, onSelectHotel }) => {
 
 const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, onReorder, isOpen, onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const { theme, toggleTheme } = useTheme();
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -221,6 +223,14 @@ const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, o
 
             <div className="p-4 border-t border-gray-800 flex flex-col gap-2">
                 <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors mb-2"
+                >
+                    {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                    <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+
+                <button
                     onClick={() => {
                         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(hotels, null, 2));
                         const downloadAnchorNode = document.createElement('a');
@@ -234,7 +244,7 @@ const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, o
                 >
                     <Download size={16} /> <span>Download Data</span>
                 </button>
-                <button disabled className="w-full flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors cursor-not-allowed opacity-50 justify-center">
+                <button disabled className="w-full flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors cursor-not-allowed opacity-50">
                     <Upload size={16} /> <span>Import Data</span>
                 </button>
             </div>

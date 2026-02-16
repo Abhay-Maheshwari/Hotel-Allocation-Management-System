@@ -4,15 +4,51 @@ import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 // Function to generate a consistent color from a string
+const getRoomTypeBase = (str) => {
+    if (!str) return 'default';
+    const lowStr = str.toLowerCase();
+    if (lowStr === 'standard') return 'deluxe';
+    return lowStr;
+};
+
+const getPremiumColor = (type) => {
+    const t = getRoomTypeBase(type);
+    if (t.includes('suite')) return { h: 45, s: 80, l: 50 }; // Gold
+    if (t.includes('penthouse')) return { h: 280, s: 70, l: 50 }; // Purple
+    if (t.includes('executive')) return { h: 170, s: 70, l: 45 }; // Teal
+    if (t.includes('family')) return { h: 200, s: 70, l: 50 }; // Blue
+    if (t.includes('deluxe')) return { h: 25, s: 70, l: 55 }; // Orange/Tan
+    return null;
+};
+
 const stringToColor = (str) => {
-    if (!str) return '#ffffff'; // Default white for no type
+    const type = getRoomTypeBase(str);
+    if (type === 'default') return '#ffffff';
+
+    const premium = getPremiumColor(type);
+    if (premium) return `hsl(${premium.h}, ${premium.s}%, 95%)`;
+
     let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i = 0; i < type.length; i++) {
+        hash = type.charCodeAt(i) + ((hash << 5) - hash);
     }
-    // Use HSL for better pastel colors
     const h = Math.abs(hash % 360);
-    return `hsl(${h}, 70%, 90%)`; // Pastel background
+    return `hsl(${h}, 70%, 95%)`; // Very soft pastel
+};
+
+const stringToBorderColor = (str) => {
+    const type = getRoomTypeBase(str);
+    if (type === 'default') return '#4f46e5';
+
+    const premium = getPremiumColor(type);
+    if (premium) return `hsl(${premium.h}, ${premium.s}%, ${premium.l}%)`;
+
+    let hash = 0;
+    for (let i = 0; i < type.length; i++) {
+        hash = type.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash % 360);
+    return `hsl(${h}, 70%, 60%)`; // Radiant vibrant color
 };
 
 const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
@@ -176,20 +212,22 @@ const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
 
 
     return (
-        <div className="p-6 h-screen overflow-y-auto bg-gray-100 flex-1">
+        <div className="p-6 h-screen overflow-y-auto bg-gray-100 dark:bg-gray-900 flex-1 transition-colors duration-200">
             <div className="flex flex-col gap-4 mb-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <h2 className="text-2xl font-bold text-gray-800">{hotel.name} <span className="text-sm font-normal text-gray-500">({hotel.rooms.length} rooms)</span></h2>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white transition-colors">
+                        {hotel.name} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({hotel.rooms.length} rooms)</span>
+                    </h2>
                     <div className="flex gap-2 w-full md:w-auto">
                         <button
                             onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                            className="flex-1 md:flex-none justify-center bg-white text-indigo-600 px-4 py-2 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition text-sm font-medium flex items-center gap-1"
+                            className="flex-1 md:flex-none justify-center bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-lg border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium flex items-center gap-1"
                         >
                             Sort {sortOrder === 'asc' ? '↑' : '↓'}
                         </button>
                         <button
                             onClick={() => setIsAddingRoom(!isAddingRoom)}
-                            className="flex-1 md:flex-none justify-center bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+                            className="flex-1 md:flex-none justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                         >
                             <Plus size={18} /> Add Room
                         </button>
@@ -197,45 +235,45 @@ const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
                 </div>
 
                 {isAddingRoom && (
-                    <form onSubmit={handleAddRoom} className="bg-white p-4 rounded-lg shadow-sm border border-indigo-100 flex flex-col md:flex-row gap-4 items-end">
+                    <form onSubmit={handleAddRoom} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-indigo-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 items-end transition-colors">
                         <div className="w-full md:w-auto">
-                            <label className="block text-xs font-semibold text-gray-500 mb-1">Room Number</label>
+                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Room Number</label>
                             <input
                                 type="text"
                                 value={newRoomNumber}
                                 onChange={e => setNewRoomNumber(e.target.value)}
-                                className="border rounded px-3 py-2 text-sm w-full md:w-32"
+                                className="border dark:border-gray-600 rounded px-3 py-2 text-sm w-full md:w-32 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                                 placeholder="e.g. 505"
                                 required
                             />
                         </div>
                         <div className="w-full md:w-auto">
-                            <label className="block text-xs font-semibold text-gray-500 mb-1">Room Type</label>
+                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Room Type</label>
                             <input
                                 type="text"
                                 value={newRoomType}
                                 onChange={e => setNewRoomType(e.target.value)}
-                                className="border rounded px-3 py-2 text-sm w-full md:w-48"
+                                className="border dark:border-gray-600 rounded px-3 py-2 text-sm w-full md:w-48 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                                 placeholder="e.g. Suite"
                             />
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            <button type="submit" className="flex-1 md:flex-none bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Save</button>
-                            <button type="button" onClick={() => setIsAddingRoom(false)} className="flex-1 md:flex-none bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300">Cancel</button>
+                            <button type="submit" className="flex-1 md:flex-none bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 transition-colors">Save</button>
+                            <button type="button" onClick={() => setIsAddingRoom(false)} className="flex-1 md:flex-none bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Cancel</button>
                         </div>
                     </form>
                 )}
 
-                <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex flex-col md:flex-row gap-4 items-center bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors">
                     <input
                         type="text"
                         placeholder="Search room or guest..."
-                        className="border rounded px-3 py-2 text-sm w-full md:flex-1"
+                        className="border dark:border-gray-600 rounded px-3 py-2 text-sm w-full md:flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                     <select
-                        className="border rounded px-3 py-2 text-sm bg-white w-full md:w-auto"
+                        className="border dark:border-gray-600 rounded px-3 py-2 text-sm w-full md:w-auto bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
                     >
@@ -249,72 +287,113 @@ const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredRooms.map((room) => {
                     const bgColor = stringToColor(room.room_type || 'default');
-                    const borderColor = room.room_type ? 'border-gray-300' : 'border-gray-200';
+                    const borderColor = stringToBorderColor(room.room_type || 'default');
+                    // In dark mode, we might want to override the pastel color or mute it.
+                    // Let's use a subtle overlay or just the pastel color with dark text? 
+                    // Actually, pastel colors look bad in dark mode usually.
+                    // Let's make the card dark in dark mode, and use the color as a border or accent.
+                    // OR, keep the pastel but use high opacity overlay. 
+
+                    // For now, let's keep the card structure but handle the background manually.
+                    // We can use the 'style' for light mode, and a class for dark.
+                    // But inline style overrides classes.
 
                     return (
-                        <div key={room.room_number} className={`rounded-lg shadow-sm border ${borderColor} overflow-hidden flex flex-col`} style={{ backgroundColor: bgColor }}>
-                            <div className="bg-white/50 px-4 py-3 border-b border-black/5 flex justify-between items-center">
-                                <div>
-                                    <span className="font-bold text-lg text-gray-800">Room {room.room_number}</span>
-                                    {room.room_type && <div className="text-xs text-gray-700 font-bold uppercase tracking-wider bg-white/60 px-2 py-0.5 rounded-sm inline-block mt-1">{room.room_type}</div>}
-                                </div>
-                                <button
-                                    onClick={() => handleAssign(room.room_number)}
-                                    className="text-gray-500 hover:text-indigo-600 transition-colors p-1 rounded-full hover:bg-white/80"
-                                    title="Add Occupant"
-                                >
-                                    <Plus size={18} />
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteRoom(room.room_number)}
-                                    className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded-full hover:bg-red-50 ml-1"
-                                    title="Delete Room"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
+                        <div key={room.room_number} className="relative group">
+                            {/* Card Container - using a trick: separate div for background color in light mode */}
+                            <div
+                                className={`rounded-lg shadow-sm border dark:border-gray-700 overflow-hidden flex flex-col h-full bg-white dark:bg-gray-800 transition-colors`}
+                                style={{
+                                    borderTopWidth: '12px',
+                                    borderTopStyle: 'solid',
+                                    // In light mode, borderTopColor should be transparent or same as border? 
+                                    // Actually, let's only apply the color in dark mode via style, or use a class for light mode reset.
+                                    // But inline styles override classes. 
+                                    // Let's use a CSS variable or conditional logic.
+                                    borderTopColor: borderColor
+                                }}
+                            >
+                                {/* We need to hide this border in light mode. 
+                                {/* Top Color Bar */}
+                                <div className="h-3 w-full shrink-0" style={{ backgroundColor: borderColor }}></div>
 
-                            <div className="p-4 flex-1">
-                                {room.occupants.length === 0 ? (
-                                    <div className="text-gray-400 text-sm italic py-2 text-center">Empty</div>
-                                ) : (
-                                    <ul className="space-y-2">
-                                        {room.occupants.map((occ, idx) => (
-                                            <li key={idx} className="flex items-center gap-2 text-sm text-gray-800 group bg-white/40 p-1.5 rounded-md">
-                                                <User size={14} className="text-gray-600" />
-                                                <span className="flex-1 truncate font-medium">{occ.name}</span>
-                                                <button
-                                                    onClick={() => handleUnassign(room.room_number, occ.name)}
-                                                    className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
-                                                    title="Remove"
-                                                >
-                                                    <UserMinus size={14} />
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                                {/* Light Mode Background Layer - hidden in dark mode */}
+                                <div className="absolute inset-0 dark:hidden opacity-50 pointer-events-none" style={{ backgroundColor: bgColor }}></div>
 
-                                {/* Tags Section */}
-                                <div className="mt-4 pt-3 border-t border-black/5">
-                                    <div className="flex flex-wrap gap-2">
-                                        {room.tags && room.tags.map((tag, idx) => (
-                                            <span key={idx} className="bg-white/60 text-gray-700 text-xs px-2 py-1 rounded-full flex items-center gap-1 border border-black/5">
-                                                {tag}
-                                                <button
-                                                    onClick={() => handleRemoveTag(room.room_number, tag)}
-                                                    className="hover:text-red-600"
+                                {/* Content */}
+                                <div className="relative z-10 flex flex-col flex-1">
+                                    <div className="bg-white/50 dark:bg-gray-700/50 px-4 py-3 border-b border-black/5 dark:border-white/5 flex justify-between items-center backdrop-blur-sm">
+                                        <div>
+                                            <span className="font-bold text-lg text-gray-800 dark:text-gray-100">Room {room.room_number}</span>
+                                            {room.room_type && (
+                                                <div
+                                                    className="text-xs text-gray-700 dark:text-gray-200 font-bold uppercase tracking-wider bg-white/60 dark:bg-black/30 px-2 py-0.5 rounded-sm inline-block mt-1 ml-2"
                                                 >
-                                                    &times;
+                                                    {room.room_type}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center">
+                                            <button
+                                                onClick={() => handleAssign(room.room_number)}
+                                                className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-1 rounded-full hover:bg-white/80 dark:hover:bg-gray-600"
+                                                title="Add Occupant"
+                                            >
+                                                <Plus size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteRoom(room.room_number)}
+                                                className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 ml-1"
+                                                title="Delete Room"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 flex-1">
+                                        {room.occupants.length === 0 ? (
+                                            <div className="text-gray-400 dark:text-gray-500 text-sm italic py-2 text-center">Empty</div>
+                                        ) : (
+                                            <ul className="space-y-2">
+                                                {room.occupants.map((occ, idx) => (
+                                                    <li key={idx} className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200 group/item bg-white/40 dark:bg-gray-700/50 p-1.5 rounded-md border border-transparent dark:border-gray-600">
+                                                        <User size={14} className="text-gray-600 dark:text-gray-400" />
+                                                        <span className="flex-1 truncate font-medium">{occ.name}</span>
+                                                        <button
+                                                            onClick={() => handleUnassign(room.room_number, occ.name)}
+                                                            className="opacity-0 group-hover/item:opacity-100 text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-opacity"
+                                                            title="Remove"
+                                                        >
+                                                            <UserMinus size={14} />
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+
+                                        {/* Tags Section */}
+                                        <div className="mt-4 pt-3 border-t border-black/5 dark:border-white/5">
+                                            <div className="flex flex-wrap gap-2">
+                                                {room.tags && room.tags.map((tag, idx) => (
+                                                    <span key={idx} className="bg-white/60 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-full flex items-center gap-1 border border-black/5 dark:border-gray-600">
+                                                        {tag}
+                                                        <button
+                                                            onClick={() => handleRemoveTag(room.room_number, tag)}
+                                                            className="hover:text-red-600 dark:hover:text-red-400 ml-1"
+                                                        >
+                                                            &times;
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                                <button
+                                                    onClick={() => handleAddTag(room.room_number)}
+                                                    className="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs bg-white/40 dark:bg-gray-800 hover:bg-white/80 dark:hover:bg-gray-700 px-2 py-1 rounded-full border border-dashed border-gray-300 dark:border-gray-600 transition-colors"
+                                                >
+                                                    + Tag
                                                 </button>
-                                            </span>
-                                        ))}
-                                        <button
-                                            onClick={() => handleAddTag(room.room_number)}
-                                            className="text-gray-400 hover:text-indigo-600 text-xs bg-white/40 hover:bg-white/80 px-2 py-1 rounded-full border border-dashed border-gray-300 transition-colors"
-                                        >
-                                            + Tag
-                                        </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
