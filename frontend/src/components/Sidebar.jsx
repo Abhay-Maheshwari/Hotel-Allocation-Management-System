@@ -220,7 +220,18 @@ const Sidebar = ({ hotels, selectedHotel, onSelectHotel, onGlobalSearchSelect, o
             </div>
 
             <div className="p-4 border-t border-gray-800 flex flex-col gap-2">
-                <button disabled className="w-full flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-colors opacity-50 cursor-not-allowed">
+                <button
+                    onClick={() => {
+                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(hotels, null, 2));
+                        const downloadAnchorNode = document.createElement('a');
+                        downloadAnchorNode.setAttribute("href", dataStr);
+                        downloadAnchorNode.setAttribute("download", "shaadi_data_export.json");
+                        document.body.appendChild(downloadAnchorNode);
+                        downloadAnchorNode.click();
+                        downloadAnchorNode.remove();
+                    }}
+                    className="w-full flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-colors"
+                >
                     <Download size={16} /> <span>Download Data</span>
                 </button>
                 <button disabled className="w-full flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors cursor-not-allowed opacity-50 justify-center">
