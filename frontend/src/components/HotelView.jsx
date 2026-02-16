@@ -26,14 +26,14 @@ const stringToColor = (str) => {
     if (type === 'default') return '#ffffff';
 
     const premium = getPremiumColor(type);
-    if (premium) return `hsl(${premium.h}, ${premium.s}%, 95%)`;
+    if (premium) return `hsl(${premium.h}, ${premium.s}%, 92%)`;
 
     let hash = 0;
     for (let i = 0; i < type.length; i++) {
         hash = type.charCodeAt(i) + ((hash << 5) - hash);
     }
     const h = Math.abs(hash % 360);
-    return `hsl(${h}, 70%, 95%)`; // Very soft pastel
+    return `hsl(${h}, 70%, 92%)`; // Deepened pastel
 };
 
 const stringToBorderColor = (str) => {
@@ -318,7 +318,7 @@ const HotelView = ({ hotel, initialFilter, onClearInitialFilter }) => {
                                 <div className="h-3 w-full shrink-0" style={{ backgroundColor: borderColor }}></div>
 
                                 {/* Light Mode Background Layer - hidden in dark mode */}
-                                <div className="absolute inset-0 dark:hidden opacity-50 pointer-events-none" style={{ backgroundColor: bgColor }}></div>
+                                <div className="absolute inset-0 dark:hidden opacity-90 pointer-events-none" style={{ backgroundColor: bgColor }}></div>
 
                                 {/* Content */}
                                 <div className="relative z-10 flex flex-col flex-1">
